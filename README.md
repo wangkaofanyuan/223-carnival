@@ -2,6 +2,14 @@
 
 這是一個基於 Google Apps Script (GAS) 開發的無伺服器 (Serverless) 點餐系統，專為園遊會場景設計。整合了 Google Sheets 作為後端資料庫，提供即時庫存管理、身分驗證及後台管理功能。
 
+⚠️ 注意：本專案為 Google Apps Script 應用程式，無法透過 GitHub Pages 執行。GitHub 僅作為程式碼託管與備份使用。
+
+🔗 專案連結
+
+正式站點 (Web App): https://script.google.com/macros/s/AKfycbyIddAacnBAuXut1bohN62c00xhuQiT_c2_QPdYPwmT3yj8KzQmUjzkesbnF-yIC23hew/exec
+
+管理後台:https://script.google.com/macros/s/AKfycbyIddAacnBAuXut1bohN62c00xhuQiT_c2_QPdYPwmT3yj8KzQmUjzkesbnF-yIC23hew/exec?page=admin
+
 ✨ 功能特色
 
 📱 前台 (學生/顧客端)
@@ -32,21 +40,10 @@ RWD 響應式設計：使用 Tailwind CSS，完美支援手機與電腦版面。
 
 📂 檔案結構
 
-檔案名稱
-
-說明
-
-Code.gs
-
-後端核心。負責處理 API 請求 (doGet)、與 Google Sheets 互動、驗證邏輯與庫存扣除。
-
-index.html
-
-前台介面。包含商品卡片渲染、購物車邏輯與使用者表單。
-
-admin.html
-
-後台介面。提供管理員查看訂單與修改庫存的儀表板。
+| 檔案名稱 | 說明 |
+| Code.gs | 後端核心。負責處理 API 請求 (doGet)、與 Google Sheets 互動、驗證邏輯與庫存扣除。 |
+| index.html | 前台介面。包含商品卡片渲染、購物車邏輯與使用者表單。 |
+| admin.html | 後台介面。提供管理員查看訂單與修改庫存的儀表板。 |
 
 🚀 如何部署
 
@@ -82,7 +79,7 @@ SPREADSHEET_ID: 您的試算表 ID。
 
 ADMIN_EMAILS: 管理員 Email (若有多個請用逗號分隔)。
 
-發布為 Web App：
+發布為 Web App (這是唯一的執行方式)：
 
 點擊右上角 部署 > 新增部署。
 
@@ -91,6 +88,8 @@ ADMIN_EMAILS: 管理員 Email (若有多個請用逗號分隔)。
 執行身分：我 (Me)。
 
 誰可以存取：所有人 (Anyone)。
+
+複製產生的網址，這就是您的網站連結。
 
 ⚠️ 注意事項
 
