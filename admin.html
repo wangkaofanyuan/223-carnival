@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單管理後台</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 載入 Inter 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+          font-family: 'Inter', 'Noto Sans TC', sans-serif;
+          min-height: 100vh;
+        }
+        /* 簡單的載入動畫 */
+        .spinner {
+          border: 4px solid rgba(0, 0, 0, 0.1);
+          border-left-color: #4f46e5;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        /* 讓表格在小螢幕上可以水平滾動 */
+        .table-container {
+            overflow-x: auto;
+        }
+        /* 固定標頭 */
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f3f4f6; /* bg-gray-100 */
+            z-index: 10;
+        }
+        /* 訂單群組樣式 */
+        .order-group:not(:first-child) {
+            border-top: 4px solid #4f46e5; /* indigo-600 */
+        }
+        .order-group-header {
+            background-color: #eef2ff; /* indigo-50 */
+        }
+        
+        /* 訊息提示 (成功/失敗) */
+        #messageToast {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        
+        /* 【v2 新增】分頁樣式 */
+        .tab-button {
+            @apply px-4 py-2 font-medium text-lg rounded-t-lg transition-colors duration-200;
+        }
+        .tab-button.active {
+            @apply bg-white text-indigo-600 border-b-2 border-indigo-600;
+        }
+        .tab-button:not(.active) {
+            @apply text-gray-500 hover:text-gray-700;
+        }
+        .tab-content {
+            @apply hidden;
+        }
+        .tab-content.active {
+            @apply block;
+        }
+    </style>
+</head>
+<body class="bg-gray-200 text-gray-800">
+
+    <!-- 頁首 -->
+    <header class="bg-white shadow-md sticky top-0 z-20">
+        <div class="container mx-auto max-w-7xl p-4 flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-indigo-700 mb-2 md:mb-0">訂單管理後台</h1>
+            <div class="flex items-center space-x-2 w-full md:w-auto">
+                <!-- 【v2 修改】此搜尋框僅用於「訂單管理」 -->
+                <input type="text" id="searchInput" class="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="搜尋班級、座號或姓名...">
+                
+                <button id="refreshButton" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition flex items-center">
+                    <span id="refreshText">載入/重新整理資料</span>
+                    <div id="refreshSpinner" class="spinner hidden ml-2"></div>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容 -->
+    <main class="container mx-auto max-w-7xl p-4">
+        
+        <!-- 【v2 新增】分頁導覽 -->
+        <div class="mb-4 border-b border-gray-300">
+            <nav class="flex space-x-2">
+                <button id="tabButtonOrders" class="tab-button active" data-tab="orders">訂單管理 (取貨)</button>
+                <button id="tabButtonInventory" class="tab-button" data-tab="inventory">庫存管理</button>
+            </nav>
+        </div>
+        
+        <!-- ================== -->
+        <!-- 分頁 1: 訂單管理 -->
+        <!-- ================== -->
+        <div id="tabContentOrders" class="tab-content active">
+            <!-- 篩選器 -->
+            <div class="mb-4 p-4 bg-white rounded-lg shadow">
+                <label for="statusFilter" class="block text-sm font-medium text-gray-700">篩選取貨狀態：</label>
+                <select id="statusFilter" class="mt-1 block w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="all">全部訂單</option>
+                    <option value="未取貨" selected>僅顯示「未取貨」</option>
+                    <option value="已取貨">僅顯示「已取貨」</option>
+                </select>
+            </div>
+
+            <!-- 訂單表格 -->
+            <div class="table-container bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">訂單資訊 (班級/座號/姓名)</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">商品明細</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">總金額</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">狀態</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 訂單資料會動態插入到這裡 -->
+                        <tr id="loadingRow">
+                            <td colspan="5" class="p-8 text-center text-gray-500">
+                                <div class="flex justify-center items-center">
+                                    <div class="spinner mr-2"></div>
+                                    <span>正在載入訂單資料...</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="noDataRow" class="hidden">
+                            <td colspan="5" class="p-8 text-center text-gray-500">
+                                沒有找到符合條件的訂單。
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- ================== -->
+        <!-- 分頁 2: 庫存管理 -->
+        <!-- ================== -->
+        <div id="tabContentInventory" class="tab-content">
+            <div class="table-container bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">商品 ID</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">商品名稱</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">價格</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">目前庫存</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">設定新庫存</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 庫存資料會動態插入到這裡 -->
+                        <tr id="inventoryLoadingRow">
+                            <td colspan="6" class="p-8 text-center text-gray-500">
+                                <div class="flex justify-center items-center">
+                                    <div class="spinner mr-2"></div>
+                                    <span>正在載入庫存資料...</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="inventoryNoDataRow" class="hidden">
+                            <td colspan="6" class="p-8 text-center text-gray-500">
+                                找不到庫存資料。
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 訊息提示 (成功/失敗) -->
+    <div id="messageToast" class="hidden fixed bottom-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 transform translate-y-20 opacity-0">
+        <p id="messageText"></p>
+    </div>
+
+    <script>
+        /**
+         * ===================================================================
+         * 管理後台 - 前端 (admin.html) (v6 - 載入修正)
+         * ===================================================================
+         *
+         * 【v6 更新日誌 - 載入修正】
+         * 1.  【問題】: v5 版本在 `handleFetchSuccess` 內部出錯時，
+         * `onFetchDone()` 不會被呼叫，導致計數器卡住。
+         * 2.  【修正】:
+         * - `refreshButton` 的 `addEventListener` 邏輯重構。
+         * - 在 `withSuccessHandler` 和 `withFailureHandler` 
+         * 內部增加 `try...catch...finally` 區塊。
+         * - 將 `onFetchDone()` 呼叫**移入 `finally` 區塊中**。
+         * - 這保證了無論成功函式 (`handleFetchSuccess`) 或
+         * 失敗函式 (`handleFetchError`) 是否在執行中拋出錯誤，
+         * `onFetchDone()` 都**一定會被執行**，
+         * 計數器 (`fetchCount`) 最終一定會達到 2，
+         * `setRefreshButtonLoading(false)` 也一定會被呼叫。
+         *
+         * ===================================================================
+         */
+        
+        // 全域變數
+        let allOrders = []; // 儲存從後端抓取的原始訂單資料
+        let orderGroups = new Map(); // 處理過的訂單群組
+        let allInventory = new Map(); // 【v2 新增】 'P01' -> { rowNum, id, name, price, stock }
+
+        // DOM 元素 (訂單)
+        const orderTableBody = document.getElementById("orderTableBody");
+        const loadingRow = document.getElementById("loadingRow");
+        const noDataRow = document.getElementById("noDataRow");
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        
+        // DOM 元素 (庫存) 【v2 新增】
+        const inventoryTableBody = document.getElementById("inventoryTableBody");
+        const inventoryLoadingRow = document.getElementById("inventoryLoadingRow");
+        const inventoryNoDataRow = document.getElementById("inventoryNoDataRow");
+
+        // DOM 元素 (分頁) 【v2 新增】
+        const tabButtonOrders = document.getElementById("tabButtonOrders");
+        const tabButtonInventory = document.getElementById("tabButtonInventory");
+        const tabContentOrders = document.getElementById("tabContentOrders");
+        const tabContentInventory = document.getElementById("tabContentInventory");
+        const tabs = [
+            { btn: tabButtonOrders, content: tabContentOrders },
+            { btn: tabButtonInventory, content: tabContentInventory }
+        ];
+
+        // DOM 元素 (通用)
+        const refreshButton = document.getElementById("refreshButton");
+        const refreshText = document.getElementById("refreshText");
+        const refreshSpinner = document.getElementById("refreshSpinner");
+        const messageToast = document.getElementById("messageToast");
+        const messageText = document.getElementById("messageText");
+
+        /**
+         * 顯示訊息提示
+         */
+        function showMessage(type, message) {
+            messageText.textContent = message;
+            messageToast.classList.remove("hidden", "bg-green-500", "bg-red-500", "translate-y-20", "opacity-0");
+            
+            if (type === "success") {
+                messageToast.classList.add("bg-green-500");
+            } else {
+                messageToast.classList.add("bg-red-500");
+            }
+            
+            requestAnimationFrame(() => {
+                messageToast.classList.remove("translate-y-20", "opacity-0");
+            });
+
+            setTimeout(() => {
+                messageToast.classList.add("translate-y-20", "opacity-0");
+                setTimeout(() => messageToast.classList.add("hidden"), 300);
+            }, 3000);
+        }
+
+        /**
+         * 顯示/隱藏 載入中/無資料 的提示 (訂單)
+         */
+        function showOrderTableMessage(type) {
+            loadingRow.classList.add("hidden");
+            noDataRow.classList.add("hidden");
+            if (type === 'loading') {
+                loadingRow.classList.remove("hidden");
+            } else if (type === 'noData') {
+                noDataRow.classList.remove("hidden");
+            }
+        }
+        
+        /**
+         * 【v2 新增】顯示/隱藏 載入中/無資料 的提示 (庫存)
+         */
+        function showInventoryTableMessage(type) {
+            inventoryLoadingRow.classList.add("hidden");
+            inventoryNoDataRow.classList.add("hidden");
+            if (type === 'loading') {
+                inventoryLoadingRow.classList.remove("hidden");
+            } else if (type === 'noData') {
+                inventoryNoDataRow.classList.remove("hidden");
+            }
+        }
+
+        /**
+         * 設定載入按鈕的狀態
+         */
+        function setRefreshButtonLoading(isLoading) {
+            if (isLoading) {
+                refreshText.classList.add("hidden");
+                refreshSpinner.classList.remove("hidden");
+                refreshButton.disabled = true;
+                refreshButton.classList.add("opacity-75", "cursor-not-allowed");
+            } else {
+                refreshText.classList.remove("hidden");
+                refreshSpinner.classList.add("hidden");
+                refreshButton.disabled = false;
+                refreshButton.classList.remove("opacity-75", "cursor-not-allowed");
+            }
+        }
+        
+        // ===========================
+        // 訂單管理 (Orders)
+        // ===========================
+
+        /**
+         * 從後端抓取訂單資料
+         */
+        function fetchOrders() {
+            // setRefreshButtonLoading(true); // 【v5 移除】
+            // showOrderTableMessage('loading'); // 【v5 移除】
+            
+            google.script.run
+                .withSuccessHandler(handleFetchSuccess)
+                .withFailureHandler(handleFetchError)
+                .getOrdersForAdmin();
+        }
+
+        /**
+         * 成功抓取訂單的處理函式
+         */
+        function handleFetchSuccess(jsonResponse) {
+            // 【v2 修改】只有在兩個都完成後才停止 loading
+            // setRefreshButtonLoading(false); 
+            
+            try {
+                if (typeof jsonResponse !== 'string' || jsonResponse.trim().charAt(0) === '<') {
+                    console.error("Server returned non-JSON (HTML?)", jsonResponse);
+                    throw new Error("伺服器回傳格式錯誤 (HTML)。");
+                }
+                
+                const data = JSON.parse(jsonResponse);
+                
+                if (data && data.status === 'error') {
+                    throw new Error(data.message);
+                }
+
+                allOrders = data;
+                processOrders(allOrders);
+                
+                if (allOrders.length > 0) {
+                    showMessage("success", `成功載入 ${allOrders.length} 筆商品項目。`);
+                }
+                
+            } catch (e) {
+                console.error("JSON.parse() 失敗！或後端回傳錯誤。", e);
+                // 【v6 修改】將錯誤往上拋，讓 finally 能抓到
+                handleFetchError(e, e.message || "載入資料失敗。請確認您已使用管理員帳號登入，或檢查 Console 內的詳細錯誤。");
+                throw e; // 確保外層的 catch 能感知到
+            }
+        }
+
+        /**
+         * 抓取訂單失敗的處理函式
+         */
+        function handleFetchError(error, customMessage = "") {
+            // setRefreshButtonLoading(false); // 【v5 移除】
+            showOrderTableMessage('noData');
+            const msg = customMessage || error.message || "發生未知錯誤";
+            showMessage("error", `載入訂單失敗: ${msg}`);
+            console.error("handleFetchError:", error);
+        }
+        
+        /**
+         * 處理訂單資料，將同訂單ID的商品群組化
+         */
+        function processOrders(orders) {
+            orderGroups.clear();
+            
+            for (const item of orders) {
+                const orderId = item.orderId;
+                if (!orderGroups.has(orderId)) {
+                    orderGroups.set(orderId, {
+                        orderId: orderId,
+                        identifier: item.identifier,
+                        grade: item.grade,
+                        class: item.class,
+                        seat: item.seat,
+                        name: item.name,
+                        status: item.status,
+                        totalAmount: "",
+                        startRow: item.row,
+                        items: []
+                    });
+                }
+                
+                let group = orderGroups.get(orderId);
+                
+                group.items.push({
+                    productName: item.productName,
+                    quantity: item.quantity
+                });
+                
+                if (item.totalAmount) {
+                    group.totalAmount = item.totalAmount;
+                }
+            }
+            
+            renderTable();
+        }
+
+        /**
+         * 根據篩選條件渲染訂單表格
+         */
+        function renderTable() {
+            orderTableBody.innerHTML = '';
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterStatus = statusFilter.value;
+
+            let hasVisibleData = false;
+
+            orderGroups.forEach(group => {
+                
+                if (filterStatus !== 'all' && group.status !== filterStatus) {
+                    return;
+                }
+                
+                const fullText = `${group.grade || ''} ${group.class || ''} ${group.seat || ''} ${group.name || ''} ${group.identifier || ''}`.toLowerCase();
+                if (searchTerm && !fullText.includes(searchTerm)) {
+                    return;
+                }
+                
+                hasVisibleData = true;
+                
+                const tr = document.createElement("tr");
+                tr.className = "order-group";
+                
+                tr.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap order-group-header">
+                        <div class="text-sm font-semibold text-indigo-800">${group.class || group.grade} - ${group.seat} 號 - ${group.name}</div>
+                        <div class="text-xs text-gray-600">ID: ${group.identifier}</div>
+                        <div class="text-xs text-gray-500">訂單編號: ${group.orderId}</div>
+                    </td>
+                `;
+                
+                const itemsHtml = group.items.map(item => 
+                    `<div class="py-1">${item.productName} <span class="font-semibold text-blue-700">x ${item.quantity}</span></div>`
+                ).join('');
+                tr.innerHTML += `<td class="px-4 py-4 text-sm text-gray-700">${itemsHtml}</td>`;
+                
+                const totalAmountHtml = group.totalAmount ? `NT$${group.totalAmount}` : '';
+                tr.innerHTML += `<td class="px-4 py-4 whitespace-nowrap text-base font-semibold text-red-600">${totalAmountHtml}</td>`;
+                
+                const statusColor = group.status === '已取貨' ? 'text-green-600' : 'text-red-600';
+                tr.innerHTML += `<td class="px-4 py-4 whitespace-nowrap"><span class="font-semibold ${statusColor}">${group.status}</span></td>`;
+                
+                const buttonText = group.status === '已取貨' ? '標示為未取貨' : '標示為已取貨';
+                const buttonClass = group.status === '已取貨' 
+                    ? 'bg-yellow-500 hover:bg-yellow-600' 
+                    : 'bg-green-500 hover:bg-green-600';
+                
+                tr.innerHTML += `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        <button class="toggle-status-btn px-3 py-2 rounded-md text-white ${buttonClass} transition" 
+                                data-order-id="${group.orderId}"
+                                data-start-row="${group.startRow}" 
+                                data-num-items="${group.items.length}"
+                                data-new-status="${group.status === '已取貨' ? '未取貨' : '已取貨'}">
+                            ${buttonText}
+                        </button>
+                    </td>
+                `;
+                
+                orderTableBody.appendChild(tr);
+            });
+
+            if (!hasVisibleData) {
+                showOrderTableMessage('noData');
+            } else {
+                showOrderTableMessage('done');
+            }
+        }
+        
+        /**
+         * 更新取貨狀態 (呼叫後端)
+         */
+        function toggleStatus(button) {
+            const orderId = button.dataset.orderId;
+            const startRow = parseInt(button.dataset.startRow, 10);
+            const numItems = parseInt(button.dataset.numItems, 10);
+            const newStatus = button.dataset.newStatus;
+            
+            button.disabled = true;
+            button.textContent = "更新中...";
+            button.classList.add("opacity-50", "cursor-wait");
+
+            google.script.run
+                .withSuccessHandler(res => handleUpdateSuccess(res, orderId, newStatus))
+                .withFailureHandler(err => handleUpdateError(err, button, newStatus === '已取貨' ? '標示為已取貨' : '標示為未取貨'))
+                .updatePickupStatus(startRow, numItems, newStatus);
+        }
+
+        /**
+         * 成功更新狀態的處理函式
+         */
+        function handleUpdateSuccess(response, orderId, newStatus) {
+            try {
+                if (typeof response !== 'string' || response.trim().charAt(0) === '<') {
+                    console.error("Server returned non-JSON (HTML?) during status update:", response);
+                    throw new Error("伺服器回傳格式錯誤 (HTML)。");
+                }
+                
+                const res = JSON.parse(response);
+                if (res.status !== 'success') throw new Error(res.message);
+                
+                showMessage("success", `訂單 ${orderId} 狀態已更新為「${newStatus}」`);
+                
+                const orderIdNum = parseInt(orderId, 10);
+                
+                if (orderGroups.has(orderIdNum)) {
+                    orderGroups.get(orderIdNum).status = newStatus;
+                }
+                
+                renderTable();
+
+            } catch (e) {
+                handleUpdateError(e, document.querySelector(`[data-order-id="${orderId}"]`), "...");
+            }
+        }
+        
+        /**
+         * 更新狀態失敗的處理函式
+         */
+        function handleUpdateError(error, button, originalText) {
+            showMessage("error", `更新失敗: ${error.message}`);
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+                button.classList.remove("opacity-50", "cursor-wait");
+            }
+        }
+        
+        // ===========================
+        // 庫存管理 (Inventory) 【v2 新增】
+        // ===========================
+
+        /**
+         * 【v2 新增】從後端抓取庫存資料
+         */
+        function fetchInventory() {
+            // setRefreshButtonLoading(true); // 【v5 移除】
+            // showInventoryTableMessage('loading'); // 【v5 移除】
+            
+            google.script.run
+                .withSuccessHandler(handleInventoryFetchSuccess)
+                .withFailureHandler(handleInventoryFetchError)
+                .getInventoryForAdmin();
+        }
+
+        /**
+         * 【v2 新增】成功抓取庫存
+         */
+        function handleInventoryFetchSuccess(jsonResponse) {
+            try {
+                if (typeof jsonResponse !== 'string' || jsonResponse.trim().charAt(0) === '<') {
+                    throw new Error("伺服器回傳格式錯誤 (HTML)。");
+                }
+                const res = JSON.parse(jsonResponse);
+                if (res.status !== 'success') throw new Error(res.message);
+
+                allInventory.clear();
+                res.data.forEach(item => {
+                    allInventory.set(item.id, item);
+                });
+                
+                renderInventoryTable();
+                
+            } catch (e) {
+                // 【v6 修改】將錯誤往上拋
+                handleInventoryFetchError(e);
+                throw e;
+            }
+        }
+
+        /**
+         * 【v2 新增】抓取庫存失敗
+         */
+        function handleInventoryFetchError(error) {
+            // setRefreshButtonLoading(false); // 【v5 移除】
+            showInventoryTableMessage('noData');
+            showMessage("error", `載入庫存失敗: ${error.message}`);
+            console.error("handleInventoryFetchError:", error);
+        }
+        
+        /**
+         * 【v2 新增】渲染庫存表格
+         */
+        function renderInventoryTable() {
+            inventoryTableBody.innerHTML = '';
+            
+            if (allInventory.size === 0) {
+                showInventoryTableMessage('noData');
+                return;
+            }
+            
+            showInventoryTableMessage('done');
+            
+            allInventory.forEach(item => {
+                const tr = document.createElement("tr");
+                tr.id = `inventory-row-${item.id}`;
+                
+                tr.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.id}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">${item.name}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">NT$${item.price}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-blue-700">${item.stock}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <input type="number" min="0" value="${item.stock}" class="stock-input w-24 px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <button class="update-stock-btn px-3 py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition" data-id="${item.id}">
+                            <span>更新</span>
+                            <div class="spinner hidden ml-1" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                        </button>
+                    </td>
+                `;
+                inventoryTableBody.appendChild(tr);
+            });
+        }
+        
+        /**
+         * 【v2 新增】處理庫存更新
+         */
+        function handleInventoryUpdate(button) {
+            const productId = button.dataset.id;
+            const row = document.getElementById(`inventory-row-${productId}`);
+            const input = row.querySelector('.stock-input');
+            const newStock = parseInt(input.value, 10);
+            
+            if (isNaN(newStock) || newStock < 0) {
+                showMessage("error", "請輸入有效的庫存數量 (大於等於 0)。");
+                return;
+            }
+            
+            const buttonText = button.querySelector('span');
+            const buttonSpinner = button.querySelector('.spinner');
+            
+            button.disabled = true;
+            buttonText.classList.add('hidden');
+            buttonSpinner.classList.remove('hidden');
+
+            google.script.run
+                .withSuccessHandler(res => handleInventoryUpdateSuccess(res))
+                .withFailureHandler(err => handleInventoryUpdateError(err, button))
+                .updateInventoryForAdmin(productId, newStock);
+        }
+        
+        /**
+         * 【v2 新增】庫存更新成功
+         */
+        function handleInventoryUpdateSuccess(jsonResponse) {
+             try {
+                if (typeof jsonResponse !== 'string' || jsonResponse.trim().charAt(0) === '<') {
+                    throw new Error("伺服器回傳格式錯誤 (HTML)。");
+                }
+                const res = JSON.parse(jsonResponse);
+                if (res.status !== 'success') throw new Error(res.message);
+
+                // 更新本地 Map
+                if (allInventory.has(res.productId)) {
+                    allInventory.get(res.productId).stock = res.newStock;
+                }
+                
+                // 重新渲染該列
+                const row = document.getElementById(`inventory-row-${res.productId}`);
+                const button = row.querySelector('.update-stock-btn');
+                const buttonText = button.querySelector('span');
+                const buttonSpinner = button.querySelector('.spinner');
+                
+                row.querySelector('td:nth-child(4)').textContent = res.newStock;
+                button.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonSpinner.classList.add('hidden');
+                
+                showMessage("success", `商品 ${res.productId} 庫存已更新為 ${res.newStock}。`);
+
+            } catch (e) {
+                handleInventoryUpdateError(e, document.querySelector(`.update-stock-btn[data-id="${res.productId}"]`));
+            }
+        }
+
+        /**
+         * 【v2 新增】庫存更新失敗
+         */
+        function handleInventoryUpdateError(error, button) {
+            showMessage("error", `庫存更新失敗: ${error.message}`);
+            if (button) {
+                const buttonText = button.querySelector('span');
+                const buttonSpinner = button.querySelector('.spinner');
+                button.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonSpinner.classList.add('hidden');
+            }
+        }
+
+
+        // ===========================
+        // 事件監聽 (Event Listeners)
+        // ===========================
+        
+        /**
+         * 【v6 重大修正】重新整理按鈕 (同時載入訂單和庫存)
+         */
+        refreshButton.addEventListener("click", () => {
+            let fetchCount = 0;
+            const totalFetches = 2;
+            
+            // 1. 統一設定載入狀態
+            setRefreshButtonLoading(true);
+            showOrderTableMessage('loading');
+            showInventoryTableMessage('loading');
+
+            const onFetchDone = () => {
+                fetchCount++;
+                if (fetchCount === totalFetches) {
+                    setRefreshButtonLoading(false);
+                }
+            };
+            
+            // 2. 載入訂單
+            try {
+                google.script.run
+                    .withSuccessHandler(res => {
+                        try {
+                            handleFetchSuccess(res); // 嘗試處理
+                        } catch (e) {
+                            console.error("Error *inside* handleFetchSuccess:", e);
+                            // 即使處理函式出錯，也要顯示錯誤
+                            handleFetchError(e, "處理訂單資料時發生錯誤。"); 
+                        } finally {
+                            onFetchDone(); // 【v6】保證執行
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        try {
+                            handleFetchError(err); // 嘗試處理
+                        } catch (e) {
+                             console.error("Error *inside* handleFetchError:", e);
+                        } finally {
+                            onFetchDone(); // 【v6】保證執行
+                        }
+                    })
+                    .getOrdersForAdmin();
+            } catch (e) {
+                console.error("Error calling getOrdersForAdmin:", e);
+                handleFetchError(e, "呼叫 getOrdersForAdmin 失敗");
+                onFetchDone(); // 如果 google.script.run 本身失敗
+            }
+
+            // 3. 載入庫存
+            try {
+                google.script.run
+                    .withSuccessHandler(res => {
+                        try {
+                            handleInventoryFetchSuccess(res); // 嘗試處理
+                        } catch (e) {
+                            console.error("Error *inside* handleInventoryFetchSuccess:", e);
+                            handleInventoryFetchError(e, "處理庫存資料時發生錯誤。");
+                        } finally {
+                            onFetchDone(); // 【v6】保證執行
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        try {
+                            handleInventoryFetchError(err); // 嘗試處理
+                        } catch (e) {
+                            console.error("Error *inside* handleInventoryFetchError:", e);
+                        } finally {
+                            onFetchDone(); // 【v6】保證執行
+                        }
+                    })
+                    .getInventoryForAdmin();
+            } catch (e) {
+                console.error("Error calling getInventoryForAdmin:", e);
+                handleInventoryFetchError(e, "呼叫 getInventoryForAdmin 失敗");
+                onFetchDone(); // 如果 google.script.run 本身失敗
+            }
+        });
+        
+        // 訂單篩選
+        searchInput.addEventListener("input", renderTable);
+        statusFilter.addEventListener("change", renderTable);
+
+        // 訂單狀態切換
+        orderTableBody.addEventListener("click", function(e) {
+            if (e.target && e.target.classList.contains("toggle-status-btn")) {
+                toggleStatus(e.target);
+            }
+        });
+        
+        // 【v2 新增】庫存更新按鈕
+        inventoryTableBody.addEventListener("click", function(e) {
+            const button = e.target.closest('.update-stock-btn');
+            if (button) {
+                handleInventoryUpdate(button);
+            }
+        });
+        
+        // 【v2 新增】分頁切換
+        tabs.forEach(tab => {
+            tab.btn.addEventListener("click", () => {
+                // 移除所有 active
+                tabs.forEach(t => {
+                    t.btn.classList.remove("active");
+                    t.content.classList.remove("active");
+                });
+                // 新增 active
+                tab.btn.classList.add("active");
+                tab.content.classList.add("active");
+                
+                // 【v2 新增】根據分頁顯示/隱藏搜尋框
+                if (tab.btn.id === 'tabButtonOrders') {
+                    searchInput.parentElement.style.display = 'block'; // 顯示搜尋框
+                    statusFilter.parentElement.style.display = 'block'; // 顯示篩選器
+                } else {
+                    searchInput.parentElement.style.display = 'none'; // 隱藏搜尋框
+                    statusFilter.parentElement.style.display = 'none'; // 隱藏篩選器
+                }
+            });
+        });
+
+        /**
+         * 初始載入函式
+         */
+        function initialLoad() {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                // 觸發一次點擊，載入所有資料
+                refreshButton.click(); 
+                // 預設隱藏搜尋框和篩選器 (因為預設分頁是訂單，所以要顯示)
+                // searchInput.parentElement.style.display = 'block';
+                // statusFilter.parentElement.style.display = 'block';
+            } else {
+                setTimeout(initialLoad, 100);
+            }
+        }
+
+        window.addEventListener("load", initialLoad);
+
+    </script>
+</body>
+</html>
