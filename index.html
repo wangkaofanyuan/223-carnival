@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>陽明 223 園遊會快易點</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 載入 Inter 字體 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    }
+    
+    /* 隱藏滾動條 (用於彈出視窗) */
+    .modal-open {
+      overflow: hidden;
+    }
+    /* 簡單的載入動畫 */
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #4f46e5;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 左側飾條標題 (活動區塊用) */
+    .title-accent {
+      @apply border-l-4 border-indigo-600 pl-4;
+    }
+
+    /* + / - 按鈕樣式 (Modal 內) */
+    .quantity-btn {
+      @apply w-12 h-12 flex items-center justify-center rounded-full text-2xl font-semibold transition-all duration-200;
+    }
+    
+    .quantity-display {
+      @apply w-16 text-center text-2xl font-medium text-gray-800;
+    }
+
+    /* 購物車徽章樣式 */
+    .cart-badge {
+      @apply absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center;
+    }
+
+    /* 商品卡片模板 */
+    #productCardTemplate {
+      display: none;
+    }
+
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- 頁首 -->
+  <!-- 【修改】加大陰影 (shadow-md) -->
+  <header class="bg-white shadow-md sticky top-0 z-20">
+    <!-- 【修改】增加內距 (p-4 md:p-5) -->
+    <div class="container mx-auto max-w-4xl p-4 md:p-5 flex flex-row justify-center items-center">
+      <!-- 【修改】加大圖片 (h-12 w-12) 並更新 inline style -->
+      <img src="https://class.kh.edu.tw/sites/4609/upload_file/21/ymjh.png" alt="陽明國中校徽" class="h-12 w-12 mr-4" style="height: 48px; width: 48px;">
+      <!-- 【修改】加大文字 (text-2xl md:text-3xl) -->
+      <h1 class="text-2xl md:text-3xl font-bold text-indigo-700 text-center tracking-wide">223 園遊會 - 戰力補給站</h1>
+    </div>
+  </header>
+
+  <!-- 主內容 -->
+  <main class="container mx-auto max-w-4xl p-4 pb-28">
+
+    <!-- 商品列表容器 (標題和內容都將由 JS 動態生成) -->
+    <div id="productList" class="space-y-10">
+      
+      <!-- 載入中提示 -->
+      <div id="loadingProducts" class="p-12 text-center text-gray-500">
+        <div class="flex justify-center items-center flex-col">
+            <div class="spinner mb-4"></div>
+            <span>正在載入商品...</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 商品卡片模板 (隱藏，JS 會複製這個結構) -->
+    <!-- 依據截圖還原樣式：白色背景、圓角、陰影、緊湊佈局 -->
+    <div id="productCardTemplate" class="product-card group bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100" data-id="" data-name="" data-price="" data-stock="">
+      
+      <!-- 圖片區域：aspect-square (正方形)，移除固定高度，確保滿版 -->
+      <div class="relative w-full aspect-square bg-gray-100 overflow-hidden">
+        <!-- object-cover (填滿)，移除 p-2 (內距)，讓圖片滿版 -->
+        <img src="" alt="商品圖片" class="product-image w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300">
+      </div>
+      
+      <!-- 內容區域 -->
+      <div class="p-4">
+        <!-- 商品名稱 -->
+        <h4 class="product-name text-lg font-bold text-gray-800 mb-1 leading-tight truncate">商品名稱</h4>
+        
+        <!-- 庫存 -->
+        <p class="product-stock text-xs font-medium text-blue-600 mb-3">庫存: 0</p>
+        
+        <!-- 價格與按鈕 -->
+        <div class="flex justify-between items-center mt-2">
+          <span class="product-price text-xl font-bold text-red-600">NT$0</span>
+          
+          <!-- 綠色圓形購物車按鈕 (還原截圖風格) -->
+          <button class="quantity-select-btn w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full shadow flex items-center justify-center transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed" data-action="select-quantity" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.088.832l.994 4.183c.101.423.504.734.954.734h10.468c.45 0 .853-.311.954-.734l.994-4.183c.133-.489.578-.832 1.088-.832h1.386m-20.25 0H21m-19.125 0a.75.75 0 0 0-.729.563L1.5 6.75h21L19.64 3.563a.75.75 0 0 0-.729-.563M3.75 20.25a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm12 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-9-3.75h10.5a2.25 2.25 0 0 0 2.179-1.399l2.809-5.617a.75.75 0 0 0-.108-.859 1.5 1.5 0 0 0-2.22-.192l-2.613 2.09-2.31-4.816a.75.75 0 0 0-.693-.412H6.38a.75.75 0 0 0-.712.513L3.14 15h11.295a.75.75 0 0 1 0 1.5H3.75v-.75Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- 模板結束 -->
+
+
+    <!-- ***** 終極挑戰活動區塊 (保留) ***** -->
+    <section id="game-challenge" class="mt-16 border-t pt-10">
+      <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-gray-100">
+        
+        <!-- 1. 標題 -->
+        <div class="text-center mb-8">
+          <h2 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-red-500 mb-3">
+            🔥 終極挑戰！神之手：匙來運轉 🔥
+          </h2>
+          <p class="text-lg md:text-xl font-bold text-indigo-600">
+            玩遊戲，換大獎！最高可獲得價值 $130 商品！
+          </p>
+        </div>
+
+        <!-- 2. 影片 -->
+        <div class="relative rounded-2xl overflow-hidden shadow-lg bg-black mb-12 mx-auto max-w-3xl" style="padding-bottom: 56.25%;">
+          <iframe 
+            src="https://www.youtube.com/embed/JvJrFoupjjQ?start=100&amp;autoplay=0&amp;mute=1&amp;controls=1&amp;loop=1&amp;playlist=JvJrFoupjjQ" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen
+            class="absolute top-0 left-0 w-full h-full"
+          ></iframe>
+        </div>
+
+        <h3 class="text-2xl font-bold mb-6 text-gray-800 border-l-4 border-indigo-500 pl-3">活動詳情</h3>
+        
+        <!-- 3. 活動詳情 (三欄式) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <!-- 規則 -->
+          <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
+            <h4 class="text-xl font-bold mb-4 flex items-center text-indigo-300">
+              <span class="text-3xl mr-3">🎮</span> 遊戲規則
+            </h4>
+            <ul class="space-y-3 text-slate-200 text-sm leading-relaxed list-disc pl-5">
+              <li>讓乒乓球從輪子「起點湯匙」出發。</li>
+              <li>隨著輪子旋轉，精準落入「終點湯匙」中。</li>
+              <li>挑戰失敗：球彈出、或球離開起點後又彈回起點。</li>
+            </ul>
+          </div>
+
+          <!-- 費用 -->
+          <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
+            <h4 class="text-xl font-bold mb-4 flex items-center text-yellow-300">
+              <span class="text-3xl mr-3">💰</span> 遊戲費用
+            </h4>
+            <ul class="space-y-3 text-slate-200 text-sm leading-relaxed">
+              <li class="flex justify-between border-b border-slate-600 pb-2">
+                <span>小試身手 (1次)</span>
+                <span class="font-bold text-yellow-400">$10</span>
+              </li>
+              <li class="flex justify-between border-b border-slate-600 pb-2">
+                <span>輕鬆挑戰 (3次)</span>
+                <span class="font-bold text-yellow-400">$20</span>
+              </li>
+              <li class="flex justify-between">
+                <span>達人套餐 (5次)</span>
+                <span class="font-bold text-yellow-400">$30</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 兌獎 -->
+          <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
+            <h4 class="text-xl font-bold mb-4 flex items-center text-red-300">
+              <span class="text-3xl mr-3">🎁</span> 兌獎方法
+            </h4>
+            <ul class="space-y-3 text-slate-200 text-sm leading-relaxed list-disc pl-5">
+              <li>獎品依「最高連續成功次數」計算 (5次為限)。</li>
+              <li>挑戰成功後，關主確認等級後，會發放對應的<strong>「獎品」。</li>
+                          </ul>
+          </div>
+        </div>
+
+        <h3 class="text-2xl font-bold mb-6 text-gray-800 border-l-4 border-indigo-500 pl-3">獎品一覽表</h3>
+
+        <!-- 4. 獎品一覽表 -->
+        <div class="overflow-x-auto rounded-xl shadow-md border border-gray-200">
+          <table class="min-w-full bg-white text-sm text-left">
+            <thead class="bg-gray-100 text-gray-700 font-bold uppercase">
+              <tr>
+                <th class="px-6 py-4">等級</th>
+                <th class="px-6 py-4">連續成功</th>
+                <th class="px-6 py-4">獎品 (任選一)</th>
+                <th class="px-6 py-4">價值</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr class="hover:bg-blue-50 transition-colors">
+                <td class="px-6 py-4 font-bold text-blue-600">LEVEL 1</td>
+                <td class="px-6 py-4 font-bold">1 次</td>
+                <td class="px-6 py-4">阿嬤ㄟ綠豆冰 / 養樂凍 / 卡哇伊水豚君 / 吉伊萌友棒</td>
+                <td class="px-6 py-4">$20</td>
+              </tr>
+              <tr class="hover:bg-green-50 transition-colors">
+                <td class="px-6 py-4 font-bold text-green-600">LEVEL 2</td>
+                <td class="px-6 py-4 font-bold">2 次</td>
+                <td class="px-6 py-4">手勢加油棒</td>
+                <td class="px-6 py-4">$30</td>
+              </tr>
+              <tr class="hover:bg-yellow-50 transition-colors">
+                <td class="px-6 py-4 font-bold text-yellow-600">LEVEL 3</td>
+                <td class="px-6 py-4 font-bold">3 次</td>
+                <td class="px-6 py-4">肉燥炒泡麵 / 金榜題名狀元棒</td>
+                <td class="px-6 py-4">$40</td>
+              </tr>
+              <tr class="hover:bg-orange-50 transition-colors">
+                <td class="px-6 py-4 font-bold text-orange-600">LEVEL 4</td>
+                <td class="px-6 py-4 font-bold">4 次</td>
+                <td class="px-6 py-4">狂野狼牙棒 / 暴擊千噸鎚 / 雞凍情緒棒</td>
+                <td class="px-6 py-4">$90</td>
+              </tr>
+              <tr class="bg-yellow-50 hover:bg-yellow-100 transition-colors border-l-4 border-red-500">
+                <td class="px-6 py-4 font-black text-red-600 text-base">LEVEL 5</td>
+                <td class="px-6 py-4 font-black text-red-600 text-base">5 次</td>
+                <td class="px-6 py-4 font-black text-red-600">圓滿霸氣鎚 / 流星追擊鎚 / 終極毀滅鎚</td>
+                <td class="px-6 py-4 font-black text-red-600 text-base">$130</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 font-medium text-gray-500">安慰獎</td>
+                <td class="px-6 py-4 text-gray-500">輕鬆挑戰 3次失敗</td>
+                <td class="px-6 py-4 text-gray-500">「實」用禮品乙份</td>
+                <td class="px-6 py-4 text-gray-500">-</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 font-medium text-gray-500">安慰獎</td>
+                <td class="px-6 py-4 text-gray-500">達人套餐 5次失敗</td>
+                <td class="px-6 py-4 text-gray-500">$20 元商品任選一</td>
+                <td class="px-6 py-4 text-gray-500">$20</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 浮動的結帳按鈕 (購物車) -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] z-10">
+    <div class="container mx-auto max-w-4xl flex justify-between items-center">
+      <div class="flex flex-col">
+        <span class="text-xs text-gray-500 mb-1">預估總金額</span>
+        <span id="totalPriceDisplay" class="text-2xl font-bold text-indigo-600 font-mono">NT$0</span>
+      </div>
+      <button id="checkoutButton" class="relative px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 flex items-center space-x-2 active:scale-95">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.088.832l.994 4.183c.101.423.504.734.954.734h10.468c.45 0 .853-.311.954-.734l.994-4.183c.133-.489.578-.832 1.088-.832h1.386m-20.25 0H21m-19.125 0a.75.75 0 0 0-.729.563L1.5 6.75h21L19.64 3.563a.75.75 0 0 0-.729-.563M3.75 20.25a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm12 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-9-3.75h10.5a2.25 2.25 0 0 0 2.179-1.399l2.809-5.617a.75.75 0 0 0-.108-.859 1.5 1.5 0 0 0-2.22-.192l-2.613 2.09-2.31-4.816a.75.75 0 0 0-.693-.412H6.38a.75.75 0 0 0-.712.513L3.14 15h11.295a.75.75 0 0 1 0 1.5H3.75v-.75Z" />
+        </svg>
+        <span>前往結帳</span>
+        <span id="cartQuantityBadge" class="cart-badge hidden scale-0 transition-transform duration-200">0</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- 選擇數量 彈出視窗 -->
+  <div id="quantityModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-40 flex items-end sm:items-center sm:justify-center transition-opacity duration-300">
+    <div id="quantityModalCard" class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-transform duration-300 ease-out translate-y-full">
+      
+      <!-- Header -->
+      <div class="flex items-start p-6 space-x-4 border-b border-gray-100">
+        <img id="modalProductImage" src="" alt="商品圖片" class="w-20 h-20 rounded-xl object-contain bg-gray-50 border border-gray-100">
+        <div class="flex-1">
+          <h3 id="modalProductName" class="text-lg font-bold text-gray-800 leading-snug mb-1">商品名稱</h3>
+          <div class="flex items-baseline space-x-2">
+            <p id="modalProductPrice" class="text-xl font-bold text-red-600">NT$0</p>
+            <p id="modalProductStock" class="text-sm text-gray-500">庫存: 0</p>
+          </div>
+        </div>
+        <button id="closeQuantityModalButton" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      
+      <!-- Body -->
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-base font-semibold text-gray-700">購買數量</span>
+          <div class="flex items-center bg-gray-50 rounded-full p-1 border border-gray-200">
+            <button class="quantity-btn quantity-minus w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all" data-action="decrease" type="button">-</button>
+            <span id="modalQuantityDisplay" class="w-12 text-center font-bold text-lg text-gray-800">1</span>
+            <button class="quantity-btn quantity-plus w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all" data-action="increase" type="button">+</button>
+          </div>
+        </div>
+        <p id="stockWarning" class="text-red-500 text-xs text-center font-medium h-4 opacity-0 transition-opacity">已達庫存上限！</p>
+      </div>
+      
+      <!-- Footer -->
+      <div class="p-6 pt-2 bg-white">
+        <button id="confirmQuantityButton" class="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl active:scale-[0.98] transition-all duration-200">
+          確認加入購物車
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結帳 彈出視窗 -->
+  <div id="orderModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-30 flex items-end sm:items-center sm:justify-center">
+    <div id="modalCard" class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-transform duration-300 ease-out translate-y-full h-[85vh] sm:h-auto max-h-[85vh] flex flex-col">
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-5 border-b bg-white flex-shrink-0">
+        <h3 class="text-xl font-bold text-gray-800">結帳確認</h3>
+        <button id="closeModalButton" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-6 overflow-y-auto flex-1">
+        
+        <!-- 1. 訂單明細 -->
+        <div class="mb-8">
+          <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">訂單明細</h4>
+          <div id="confirmItemList" class="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <!-- 訂單項目 -->
+          </div>
+          <div id="noItemsMessage" class="hidden text-center text-gray-400 py-4">購物車是空的</div>
+        </div>
+        
+        <!-- 2. 訂購人資訊 -->
+        <section id="userInfo">
+          <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">訂購人資訊</h4>
+          
+          <form id="orderForm" class="space-y-4">
+            
+            <!-- Email 登入狀態 -->
+            <? if (userEmail && userEmail !== "") { ?>
+              <div class="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start space-x-3">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <p class="text-sm font-bold text-blue-800">已登入帳號</p>
+                  <p id="userEmailDisplay" class="text-sm text-blue-600 break-all"><?= userEmail ?></p>
+                </div>
+              </div>
+            <? } else { ?>
+              <div class="p-3 bg-yellow-50 border border-yellow-100 rounded-xl text-sm text-yellow-800 flex items-start space-x-2">
+                <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <span>未登入模式：請準確填寫以下資料，系統將進行<strong>三重驗證</strong>。</span>
+              </div>
+            <? } ?>
+            
+            <div class="grid grid-cols-3 gap-3">
+              <div class="col-span-1">
+                <label class="block text-xs font-medium text-gray-700 mb-1">年級</label>
+                <select id="grade" name="grade" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" required>
+                  <option value="">選擇</option>
+                  <option value="一">一</option>
+                  <option value="二">二</option>
+                  <option value="三">三</option>
+                  <option value="老師">老師</option>
+                </select>
+              </div>
+              <div class="col-span-1">
+                <label class="block text-xs font-medium text-gray-700 mb-1">班級</label>
+                <select id="class" name="class" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" required disabled>
+                  <option value="">-</option>
+                </select>
+              </div>
+              <div class="col-span-1">
+                <label class="block text-xs font-medium text-gray-700 mb-1">座號</label>
+                <input type="number" id="seatNumber" name="seatNumber" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" placeholder="01" required>
+              </div>
+            </div>
+
+            <!-- 姓名與性別 -->
+            <div class="grid grid-cols-3 gap-3">
+               <div id="nameField" class="col-span-2">
+                 <label class="block text-xs font-medium text-gray-700 mb-1">姓名</label>
+                 <input type="text" id="name" name="name" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" placeholder="真實姓名" required>
+               </div>
+               <div id="genderField" class="col-span-1">
+                 <label class="block text-xs font-medium text-gray-700 mb-1">性別</label>
+                 <select id="genderSelect" name="genderSelect" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" required>
+                   <option value="">-</option>
+                   <option value="男">男</option>
+                   <option value="女">女</option>
+                 </select>
+               </div>
+            </div>
+
+            <div id="studentIdField">
+              <label class="block text-xs font-medium text-gray-700 mb-1">學號 (7碼)</label>
+              <input type="text" id="studentIdInput" name="studentIdInput" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm" placeholder="例如 1410101" required>
+            </div>
+            
+            <div id="teacherNameField" class="hidden">
+              <label class="block text-xs font-medium text-gray-700 mb-1">姓名</label>
+              <input type="text" id="nameTeacher" name="nameTeacher" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm">
+            </div>
+            
+          </form>
+        </section>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="p-5 bg-white border-t flex justify-between items-center flex-shrink-0">
+        <div>
+          <span class="text-xs text-gray-500 block">應付金額</span>
+          <span id="confirmTotalPrice" class="text-2xl font-bold text-red-600 font-mono">NT$0</span>
+        </div>
+        <button id="submitOrderButton" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl transition-all flex items-center transform active:scale-95">
+          <span id="submitText">確認下單</span>
+          <div id="submitSpinner" class="spinner hidden ml-2 border-white/30 border-l-white"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 訊息提示 -->
+  <div id="messageToast" class="hidden fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white text-sm font-medium z-50 transition-all duration-300 flex items-center space-x-2 min-w-[200px] justify-center opacity-0">
+    <p id="messageText"></p>
+  </div>
+
+  <script>
+    /**
+     * ===================================================================
+     * 園遊會商品訂購系統 - v42 (還原經典卡片版)
+     * ===================================================================
+     */
+    
+    // --- 全域變數 ---
+    let cart = {}; 
+    let allProducts = new Map(); 
+    let currentModalProductId = null;
+    let currentModalMaxStock = 0;
+    let currentFormData = null;
+
+    // --- 靜態資料 ---
+    const classData = {
+      "一": 32, "二": 34, "三": 33, "老師": 1
+    };
+    
+    const allProductsData = <?!= productsData ?>;
+
+    // -------------------
+    // 函式定義
+    // -------------------
+
+    function buildProductList(products, productList, cardTemplate, loadingIndicator) {
+      if (!productList || !cardTemplate || !loadingIndicator) return;
+      
+      productList.innerHTML = '';
+      allProducts.clear();
+      loadingIndicator.classList.add("hidden");
+      
+      if (!products || products.length === 0) {
+        loadingIndicator.textContent = "目前沒有可訂購的商品。";
+        loadingIndicator.classList.remove("hidden");
+        productList.appendChild(loadingIndicator);
+        return;
+      }
+      
+      const categories = products.reduce((acc, product) => {
+        const category = product.category || '未分類';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(product);
+        return acc;
+      }, {});
+
+      Object.keys(categories).forEach(categoryName => {
+        
+        // 分類區塊容器：白色圓角大卡片
+        const categorySection = document.createElement('section');
+        categorySection.className = "bg-white p-5 md:p-8 rounded-3xl shadow-md border border-gray-100";
+
+        // 分類標題
+        const title = document.createElement('h3');
+        title.className = "text-xl font-bold mb-6 text-indigo-700 flex items-center";
+        title.innerHTML = `<span class="w-2 h-6 bg-indigo-500 rounded-full mr-3"></span>${categoryName}`;
+        categorySection.appendChild(title);
+
+        // 商品網格 (【修改】手機版預設改為 2 欄: grid-cols-2)
+        const grid = document.createElement('div');
+        // grid-cols-2: 手機預設雙欄
+        // lg:grid-cols-3: 桌面三欄
+        grid.className = "grid grid-cols-2 lg:grid-cols-3 gap-6";
+
+        const categoryProducts = categories[categoryName];
+        categoryProducts.forEach(product => {
+          
+          allProducts.set(product.id, product);
+          
+          const card = cardTemplate.cloneNode(true);
+          card.id = `product-${product.id}`;
+          card.style.display = 'block'; // 顯示卡片
+          
+          card.dataset.id = product.id;
+          card.dataset.name = product.name;
+          card.dataset.price = product.price;
+          card.dataset.stock = product.stock;
+          
+          const imgEl = card.querySelector('.product-image');
+          imgEl.src = product.imageUrl;
+          imgEl.alt = product.name;
+          
+          card.querySelector('.product-name').textContent = product.name;
+          card.querySelector('.product-price').textContent = `NT$${product.price}`;
+          
+          const stockDisplay = card.querySelector('.product-stock');
+          const button = card.querySelector('.quantity-select-btn');
+          
+          if (product.stock <= 0) {
+            stockDisplay.textContent = "已售完";
+            stockDisplay.className = "product-stock text-xs font-bold text-gray-400 mb-3";
+            button.disabled = true;
+            button.classList.add('bg-gray-300', 'hover:bg-gray-300', 'cursor-not-allowed');
+            button.classList.remove('bg-green-500', 'hover:bg-green-600', 'shadow');
+            // 圖片變灰
+            imgEl.classList.add('grayscale', 'opacity-50');
+          } else if (product.stock <= 10) {
+            stockDisplay.textContent = `庫存: ${product.stock} (即將售完)`;
+            stockDisplay.className = "product-stock text-xs font-bold text-orange-500 mb-3";
+            button.disabled = false;
+          } else {
+            stockDisplay.textContent = `庫存: ${product.stock}`;
+            button.disabled = false;
+          }
+          
+          grid.appendChild(card);
+        });
+
+        categorySection.appendChild(grid);
+        productList.appendChild(categorySection);
+      });
+    }
+    
+    function refreshProducts(productList, cardTemplate, loadingIndicator, showMessageFn) {
+      try {
+        loadingIndicator.classList.remove("hidden");
+        loadingIndicator.innerHTML = '<div class="spinner mb-2 mx-auto"></div><span class="text-sm">更新庫存中...</span>';
+        // 注意：不要清空 productList，讓使用者還看得到舊資料，體驗較好
+        
+        google.script.run
+          .withSuccessHandler((jsonResponse) => {
+            const newProducts = JSON.parse(jsonResponse);
+            buildProductList(newProducts, productList, cardTemplate, loadingIndicator);
+          })
+          .withFailureHandler((err) => {
+            showMessageFn("error", `無法重新載入: ${err.message}`);
+            loadingIndicator.classList.add("hidden");
+          })
+          .getProducts();
+      } catch (e) {
+         showMessageFn("error", `更新失敗: ${e.message}`);
+      }
+    }
+
+    function updateTotal(totalPriceDisplay, confirmTotalPrice, cartQuantityBadge) {
+      let total = 0;
+      let totalItems = 0;
+
+      for (const id in cart) {
+        const quantity = cart[id];
+        if (quantity > 0 && allProducts.has(id)) { 
+          const product = allProducts.get(id);
+          total += product.price * quantity;
+          totalItems += quantity;
+        }
+      }
+      
+      const formattedTotal = `NT$${total}`;
+      if (totalPriceDisplay) totalPriceDisplay.textContent = formattedTotal;
+      if (confirmTotalPrice) confirmTotalPrice.textContent = formattedTotal;
+
+      if (cartQuantityBadge) {
+        if (totalItems > 0) {
+          cartQuantityBadge.textContent = totalItems;
+          cartQuantityBadge.classList.remove("hidden", "scale-0");
+          cartQuantityBadge.classList.add("scale-100");
+        } else {
+          cartQuantityBadge.classList.add("scale-0");
+          setTimeout(() => cartQuantityBadge.classList.add("hidden"), 200);
+        }
+      }
+    }
+    
+    function showMessage(messageToast, messageText, type, message) {
+      if (!messageToast || !messageText) return;
+      messageText.textContent = message;
+      
+      messageToast.classList.remove("bg-green-500", "bg-red-500", "bg-yellow-500", "hidden", "opacity-0");
+      
+      if (type === "success") messageToast.classList.add("bg-green-500");
+      else if (type === "error") messageToast.classList.add("bg-red-500");
+      else messageToast.classList.add("bg-yellow-500");
+      
+      // Show
+      messageToast.classList.remove("hidden");
+      requestAnimationFrame(() => {
+          messageToast.classList.add("opacity-100", "translate-y-2");
+      });
+      
+      setTimeout(() => {
+        messageToast.classList.remove("opacity-100", "translate-y-2");
+        messageToast.classList.add("opacity-0");
+        setTimeout(() => messageToast.classList.add("hidden"), 300);
+      }, 4000);
+    }
+
+    function validateUserInfo(elements, showMessageFn) {
+      const { gradeSelect, classSelect, seatNumberInput, nameTeacherInput, nameInput, genderSelect, studentIdInput, loggedInEmailEl } = elements;
+
+      if (!gradeSelect.value) { showMessageFn("error", "請選擇「年級」！"); gradeSelect.focus(); return false; }
+      if (!classSelect.value) { showMessageFn("error", "請選擇「班級」！"); classSelect.focus(); return false; }
+      if (!seatNumberInput.value) { showMessageFn("error", "請輸入「座號」(老師請填 00)！"); seatNumberInput.focus(); return false; }
+      
+      if (gradeSelect.value === '老師') {
+        if (!loggedInEmailEl && !nameTeacherInput.value.trim()) {
+          showMessageFn("error", "請輸入「姓名」！"); nameTeacherInput.focus(); return false;
+        }
+      } else {
+        if (!loggedInEmailEl) {
+           if (!nameInput.value.trim()) { showMessageFn("error", "請輸入「姓名」！"); nameInput.focus(); return false; }
+          if (!genderSelect.value) { showMessageFn("error", "請選擇「性別」！"); genderSelect.focus(); return false; }
+          if (studentIdInput && !studentIdInput.value.trim()) { showMessageFn("error", "請輸入「學號」！"); studentIdInput.focus(); return false; }
+        } else {
+          if (!nameInput.value.trim()) { showMessageFn("error", "請輸入「姓名」！"); nameInput.focus(); return false; }
+        }
+      }
+      return true;
+    }
+
+    function openCheckoutModal(modal, modalCard) {
+      if (!modal || !modalCard) return;
+      modal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      requestAnimationFrame(() => modalCard.classList.remove("translate-y-full"));
+    }
+
+    function closeCheckoutModal(modal, modalCard) {
+      if (!modal || !modalCard) return;
+      modalCard.classList.add("translate-y-full");
+      document.body.classList.remove("modal-open");
+      setTimeout(() => modal.classList.add("hidden"), 300);
+    }
+
+    function openQuantityModal(quantityModal, quantityModalCard) {
+      if (!quantityModal || !quantityModalCard) return;
+      quantityModal.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      requestAnimationFrame(() => quantityModalCard.classList.remove("translate-y-full"));
+    }
+
+    function closeQuantityModal(quantityModal, quantityModalCard) {
+      if (!quantityModal || !quantityModalCard) return;
+      quantityModalCard.classList.add("translate-y-full");
+      document.body.classList.remove("modal-open");
+      const stockWarning = document.getElementById("stockWarning");
+      if (stockWarning) stockWarning.classList.add("opacity-0");
+      setTimeout(() => quantityModal.classList.add("hidden"), 300);
+    }
+
+    function handleValidationSuccess(response, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn) {
+      try {
+        const res = JSON.parse(response);
+        if (res.isValid) {
+          document.getElementById("submitText").textContent = "驗證成功，提交中...";
+          google.script.run
+            .withSuccessHandler((res) => handleSuccess(res, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+            .withFailureHandler((err) => handleError(err, "", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+            .processOrder(currentFormData);
+        } else {
+          setLoadingFn(false);
+          showMessageFn("error", `驗證失敗：${res.message}`);
+        }
+      } catch (e) { handleError(e, response, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn); }
+    }
+
+    function handleSuccess(response, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn) {
+      try {
+        setLoadingFn(false);
+        const res = JSON.parse(response);
+        if (res.status === "success") {
+          showMessageFn("success", "訂單已成功提交！");
+          closeCheckoutModalFn();
+          
+          document.getElementById("orderForm").reset();
+          cart = {};
+          const badge = document.getElementById("cartQuantityBadge");
+          const priceDisplay = document.getElementById("totalPriceDisplay");
+          const confirmPrice = document.getElementById("confirmTotalPrice");
+          updateTotal(priceDisplay, confirmPrice, badge);
+          
+          refreshProductsFn();
+        } else {
+          handleError(new Error(res.message), "", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn);
+        }
+      } catch (e) { handleError(e, response, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn); }
+    }
+
+    function handleError(error, rawResponse = "", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn) {
+      setLoadingFn(false);
+      let errorMsg = error.message || "發生未知錯誤";
+      showMessageFn("error", errorMsg);
+      if (errorMsg.includes("庫存不足") || errorMsg.includes("已下架")) {
+        refreshProductsFn();
+      }
+    }
+    
+    function setLoading(isLoading) {
+      const submitText = document.getElementById("submitText");
+      const submitSpinner = document.getElementById("submitSpinner");
+      const submitOrderButton = document.getElementById("submitOrderButton");
+      
+      if (isLoading) {
+        submitText.textContent = "處理中...";
+        submitSpinner.classList.remove("hidden");
+        submitOrderButton.disabled = true;
+        submitOrderButton.classList.add("opacity-75", "cursor-not-allowed");
+      } else {
+        submitText.textContent = "確認下單";
+        submitSpinner.classList.add("hidden");
+        submitOrderButton.disabled = false;
+        submitOrderButton.classList.remove("opacity-75", "cursor-not-allowed");
+      }
+    }
+
+    function updateQuantityModalControls(quantity, maxStock, displayEl, minusBtn, plusBtn, warningEl) {
+      if (!displayEl) return;
+      quantity = parseInt(quantity, 10);
+      maxStock = parseInt(maxStock, 10);
+      
+      displayEl.textContent = quantity;
+      minusBtn.disabled = (quantity <= 0);
+      
+      if (quantity >= maxStock) {
+        plusBtn.disabled = true;
+        warningEl.classList.remove("opacity-0");
+      } else {
+        plusBtn.disabled = false;
+        warningEl.classList.add("opacity-0");
+      }
+    }
+
+
+    // --- Main Execution ---
+    document.addEventListener("DOMContentLoaded", function() {
+      
+      const gradeSelect = document.getElementById("grade");
+      const classSelect = document.getElementById("class");
+      const seatNumberInput = document.getElementById("seatNumber");
+      const nameInput = document.getElementById("name");
+      const genderSelect = document.getElementById("genderSelect");
+      const studentIdInput = document.getElementById("studentIdInput");
+      const nameField = document.getElementById("nameField");
+      const genderField = document.getElementById("genderField");
+      const studentIdField = document.getElementById("studentIdField");
+      const nameTeacherInput = document.getElementById("nameTeacher");
+      const teacherNameField = document.getElementById("teacherNameField");
+      const loggedInEmailEl = document.getElementById("userEmailDisplay");
+
+      const productListContainer = document.getElementById("productList");
+      const productCardTemplate = document.getElementById("productCardTemplate");
+      const loadingProductsIndicator = document.getElementById("loadingProducts");
+      const totalPriceDisplay = document.getElementById("totalPriceDisplay");
+      const cartQuantityBadge = document.getElementById("cartQuantityBadge");
+      const checkoutButton = document.getElementById("checkoutButton");
+      
+      const modal = document.getElementById("orderModal");
+      const modalCard = document.getElementById("modalCard"); 
+      const closeModalButton = document.getElementById("closeModalButton");
+      const submitOrderButton = document.getElementById("submitOrderButton");
+      const confirmTotalPrice = document.getElementById("confirmTotalPrice");
+      
+      const quantityModal = document.getElementById("quantityModal");
+      const quantityModalCard = document.getElementById("quantityModalCard");
+      const closeQuantityModalButton = document.getElementById("closeQuantityModalButton");
+      const confirmQuantityButton = document.getElementById("confirmQuantityButton");
+      const modalProductImage = document.getElementById("modalProductImage");
+      const modalProductName = document.getElementById("modalProductName");
+      const modalProductPrice = document.getElementById("modalProductPrice");
+      const modalProductStock = document.getElementById("modalProductStock");
+      const modalQuantityDisplay = document.getElementById("modalQuantityDisplay");
+      const modalQuantityMinusBtn = quantityModalCard.querySelector('.quantity-minus');
+      const modalQuantityPlusBtn = quantityModalCard.querySelector('.quantity-plus');
+      const modalStockWarning = document.getElementById("stockWarning");
+      
+      const messageToast = document.getElementById("messageToast");
+      const messageText = document.getElementById("messageText");
+
+      const showMessageFn = (type, message) => showMessage(messageToast, messageText, type, message);
+      const closeCheckoutModalFn = () => closeCheckoutModal(modal, modalCard);
+      const setLoadingFn = (isLoading) => setLoading(isLoading);
+      const refreshProductsFn = () => refreshProducts(productListContainer, productCardTemplate, loadingProductsIndicator, showMessageFn);
+
+
+      if (gradeSelect) {
+        gradeSelect.addEventListener("change", function() {
+          const selectedGrade = this.value;
+          classSelect.innerHTML = '<option value="">選擇班級</option>';
+          classSelect.disabled = true;
+          
+          if (selectedGrade === "老師") {
+            if (!loggedInEmailEl) {
+                nameField.classList.add("hidden");
+                genderField.classList.add("hidden");
+                studentIdField.classList.add("hidden");
+                teacherNameField.classList.remove("hidden");
+            }
+            nameInput.required = false; genderSelect.required = false; studentIdInput.required = false; nameTeacherInput.required = true;
+          } else {
+            if (!loggedInEmailEl) {
+                nameField.classList.remove("hidden");
+                genderField.classList.remove("hidden");
+                studentIdField.classList.remove("hidden");
+                teacherNameField.classList.add("hidden");
+            }
+            nameInput.required = true; genderSelect.required = true; studentIdInput.required = true; nameTeacherInput.required = false;
+          }
+
+          if (selectedGrade && classData[selectedGrade]) {
+            classSelect.disabled = false;
+            if (selectedGrade === "老師") {
+               classSelect.innerHTML = '<option value="教職員">教職員</option>';
+            } else {
+              for (let i = 1; i <= classData[selectedGrade]; i++) {
+                const classNum = i.toString().padStart(2, '0');
+                const option = document.createElement("option");
+                option.value = classNum;
+                option.textContent = `${classNum} 班`;
+                classSelect.appendChild(option);
+              }
+            }
+          }
+        });
+      }
+      
+      if (productListContainer) {
+        productListContainer.addEventListener("click", function(e) {
+          const target = e.target;
+          const actionButton = target.closest('[data-action="select-quantity"]');
+          
+          if (actionButton) {
+            const card = actionButton.closest('.product-card');
+            if (!card) return;
+            
+            const id = card.dataset.id;
+            if (!allProducts.has(id)) { showMessageFn("error", "商品已下架"); return; }
+            const product = allProducts.get(id);
+            
+            currentModalProductId = id;
+            currentModalMaxStock = product.stock;
+            
+            modalProductImage.src = product.imageUrl;
+            modalProductName.textContent = product.name;
+            modalProductPrice.textContent = `NT$${product.price}`;
+            modalProductStock.textContent = `庫存: ${product.stock}`;
+            
+            const currentQty = cart[id] || 0;
+            const displayQty = (currentQty > 0) ? currentQty : 1;
+            
+            updateQuantityModalControls(displayQty, currentModalMaxStock, modalQuantityDisplay, modalQuantityMinusBtn, modalQuantityPlusBtn, modalStockWarning);
+            openQuantityModal(quantityModal, quantityModalCard);
+          }
+        });
+      }
+      
+      if (checkoutButton) {
+        checkoutButton.addEventListener("click", function() {
+          const items = [];
+          let total = 0;
+          
+          for (const id in cart) {
+            const quantity = cart[id];
+            if (quantity > 0 && allProducts.has(id)) {
+              const product = allProducts.get(id);
+              
+              if (product.stock < quantity) {
+                 showMessageFn("error", `「${product.name}」庫存不足 (剩 ${product.stock})`);
+                 cart[id] = product.stock;
+                 if (product.stock === 0) delete cart[id];
+                 updateTotal(totalPriceDisplay, confirmTotalPrice, cartQuantityBadge);
+                 return;
+              }
+              items.push({ id: id, name: product.name, price: product.price, quantity: quantity });
+              total += product.price * quantity;
+            }
+          }
+
+          if (items.length === 0) { showMessageFn("error", "購物車是空的！"); return; }
+
+          const itemListDiv = document.getElementById("confirmItemList");
+          const noItemsMsg = document.getElementById("noItemsMessage");
+          itemListDiv.innerHTML = "";
+          noItemsMsg.classList.add("hidden");
+          
+          items.forEach(item => {
+            itemListDiv.innerHTML += `
+              <div class="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
+                <div>
+                  <p class="font-bold text-gray-800">${item.name}</p>
+                  <p class="text-xs text-gray-500">單價 $${item.price} x ${item.quantity}</p>
+                </div>
+                <p class="font-bold text-indigo-600">NT$${item.price * item.quantity}</p>
+              </div>
+            `;
+          });
+          
+          confirmTotalPrice.textContent = `NT$${total}`;
+          openCheckoutModal(modal, modalCard);
+        });
+      }
+
+      if (closeModalButton) closeModalButton.addEventListener("click", () => closeCheckoutModal(modal, modalCard));
+      if (closeQuantityModalButton) closeQuantityModalButton.addEventListener("click", () => closeQuantityModal(quantityModal, quantityModalCard));
+
+      if (quantityModalCard) {
+        quantityModalCard.addEventListener("click", function(e) {
+          const target = e.target;
+          const actionButton = target.closest('[data-action]');
+          
+          if (actionButton) {
+            const action = actionButton.dataset.action;
+            let quantity = parseInt(modalQuantityDisplay.textContent, 10);
+
+            if (action === 'increase') { if (quantity < currentModalMaxStock) quantity++; } 
+            else if (action === 'decrease') { if (quantity > 0) quantity--; }
+            
+            updateQuantityModalControls(quantity, currentModalMaxStock, modalQuantityDisplay, modalQuantityMinusBtn, modalQuantityPlusBtn, modalStockWarning);
+          }
+        });
+      }
+
+      if (confirmQuantityButton) {
+        confirmQuantityButton.addEventListener("click", function() {
+          const id = currentModalProductId;
+          if (!id) return;
+          const newQty = parseInt(modalQuantityDisplay.textContent, 10);
+          if (newQty > 0) cart[id] = newQty; else delete cart[id];
+          closeQuantityModal(quantityModal, quantityModalCard);
+          updateTotal(totalPriceDisplay, confirmTotalPrice, cartQuantityBadge);
+        });
+      }
+
+      if (submitOrderButton) {
+        submitOrderButton.addEventListener("click", function() {
+          const validationElements = { gradeSelect, classSelect, seatNumberInput, nameTeacherInput, nameInput, genderSelect, studentIdInput, loggedInEmailEl };
+          if (!validateUserInfo(validationElements, showMessageFn)) return;
+
+          setLoadingFn(true);
+
+          const items = [];
+          let total = 0;
+          for (const id in cart) {
+            const quantity = cart[id];
+            if (quantity > 0 && allProducts.has(id)) {
+              const product = allProducts.get(id);
+              if (product.stock < quantity) {
+                showMessageFn("error", `「${product.name}」庫存不足，請重新確認`);
+                cart[id] = product.stock; if (product.stock === 0) delete cart[id];
+                updateTotal(totalPriceDisplay, confirmTotalPrice, cartQuantityBadge);
+                closeCheckoutModalFn(); refreshProductsFn(); setLoadingFn(false); return;
+              }
+              items.push({ id: id, name: product.name, price: product.price, quantity: quantity });
+              total += product.price * quantity;
+            }
+          }
+          
+          const grade = gradeSelect.value;
+          const classNum = classSelect.value;
+          const seatNum = seatNumberInput.value;
+          const isTeacher = (grade === '老師');
+          const name = isTeacher ? nameTeacherInput.value : nameInput.value;
+          const gender = isTeacher ? '' : genderSelect.value;
+          const studentId = isTeacher ? '' : (studentIdInput ? studentIdInput.value : '');
+          const identifier = loggedInEmailEl ? loggedInEmailEl.textContent : (isTeacher ? `${name}-教職員` : studentId);
+
+          currentFormData = {
+            identifier: identifier,
+            grade: grade,
+            class: classNum === '教職員' ? '教職員' : `${grade} ${classNum} 班`,
+            seatNumber: seatNum,
+            name: name,
+            items: items,
+            totalPrice: total
+          };
+          
+          try {
+            if (loggedInEmailEl || isTeacher) {
+              document.getElementById("submitText").textContent = "提交訂單中...";
+              google.script.run
+                .withSuccessHandler((res) => handleSuccess(res, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+                .withFailureHandler((err) => handleError(err, "", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+                .processOrder(currentFormData);
+            } else {
+              document.getElementById("submitText").textContent = "資料驗證中...";
+              const validationInfo = { grade, class: classNum, seatNumber: seatNum, name, studentId, gender };
+              google.script.run
+                .withSuccessHandler((res) => handleValidationSuccess(res, setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+                .withFailureHandler((err) => handleError(err, "", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn))
+                .validateStudent(validationInfo);
+            }
+          } catch (e) { handleError(e, "Error call.", setLoadingFn, showMessageFn, closeCheckoutModalFn, refreshProductsFn); }
+        });
+      }
+
+      // Init
+      buildProductList(allProductsData, productListContainer, productCardTemplate, loadingProductsIndicator);
+      updateTotal(totalPriceDisplay, confirmTotalPrice, cartQuantityBadge);
+      
+      <? if (!userEmail || userEmail === "") { ?>
+          if (gradeSelect.value === '老師') {
+            nameField.classList.add("hidden"); genderField.classList.add("hidden"); studentIdField.classList.add("hidden"); teacherNameField.classList.remove("hidden");
+          } else {
+            nameField.classList.remove("hidden"); genderField.classList.remove("hidden"); studentIdField.classList.remove("hidden"); teacherNameField.classList.add("hidden");
+          }
+      <? } ?>
+
+    });
+  </script>
+</body>
+</html>
